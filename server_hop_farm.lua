@@ -52,26 +52,30 @@ local function serverHop()
     end
     local validServers = {}
     for _, server in ipairs(servers.data) do
-        if server.id ~= currentJobId and server.playing < server.maxPlayers - 5 then
+        if server.id ~= currentJobId and server.id ~= game.JobId and server.playing < server.maxPlayers - 5 then
             table.insert(validServers, server.id)
         end
     end
     if #validServers > 0 then
         local targetServer = validServers[math.random(1, #validServers)]
-        log("Servidor encontrado! Teleportando...")
+        log("Servidor encontrado! ID: " .. targetServer:sub(1, 8) .. "...")
+        task.wait(1)
         TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, player)
     else
         log("Nenhum servidor disponivel, tentando qualquer um...")
+        task.wait(1)
         TeleportService:Teleport(game.PlaceId, player)
     end
 end
 
-local function GetPetByRarity()
+local function GetAllPetsByRarity()
+    local pets = {}
     for _, v in workspace.RoamingPets.Pets:GetChildren() do
         if v:IsA("Model") and RARITIES[v:GetAttribute("Rarity")] then
-            return v
+            table.insert(pets, v)
         end
     end
+    return pets
 end
 
 local function equipLasso()
@@ -159,19 +163,26 @@ local function mainLoop()
     log("Alvos: Mythical, Secret, Exclusive")
     while STATE.running do
         task.wait(1)
-        local targetPet = GetPetByRarity()
-        if not targetPet then
-            log("Nenhum alvo encontrado. Trocando servidor em 1s...")
-            task.wait(1)
+        local allPets = GetAllPetsByRarity()
+        if #allPets == 0 then
+            log("Nenhum alvo encontrado. Trocando servidor em 2s...")
+            task.wait(2)
             serverHop()
             break
         end
-        if capturePet(targetPet) then
-            log("Trocando servidor em 1s...")
-            task.wait(1)
-            serverHop()
-            break
+        log(string.format("Encontrado %d alvo(s) no servidor!", #allPets))
+        for i, pet in ipairs(allPets) do
+            if not STATE.running then break end
+            if pet.Parent then
+                log(string.format("Capturando %d/%d...", i, #allPets))
+                capturePet(pet)
+                task.wait(2)
+            end
         end
+        log("Todos os alvos capturados! Trocando servidor em 2s...")
+        task.wait(2)
+        serverHop()
+        break
     end
 end
 
@@ -231,5 +242,8 @@ if loadState() then
     task.wait(3)
     task.spawn(mainLoop)
 else
-    log("GUI carregada! Clique em INICIAR para começar.")
+    log("GUI carregada! Clique em INICIAR para comecar.")
 end
+
+setclipboard("loadstring(game:HttpGet('https://raw.githubusercontent.com/eqxfullpaster/lasso-pets/main/server_hop_farm.lua'))()")
+log("COPIADO! Cole no Xeno e salve como autoexec!")
