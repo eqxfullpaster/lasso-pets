@@ -15,11 +15,30 @@ local STATE = {
     capturedCount = 0,
 }
 
+local function saveState()
+    writefile("serverhop_state.txt", "running")
+end
+
+local function loadState()
+    if isfile("serverhop_state.txt") then
+        local content = readfile("serverhop_state.txt")
+        return content == "running"
+    end
+    return false
+end
+
+local function clearState()
+    if isfile("serverhop_state.txt") then
+        delfile("serverhop_state.txt")
+    end
+end
+
 local function log(msg)
     print(string.format("[%s] %s", os.date("%H:%M:%S"), msg))
 end
 
 local function serverHop()
+    saveState()
     log("Procurando novo servidor...")
     local currentJobId = game.JobId
     local success, servers = pcall(function()
@@ -176,6 +195,7 @@ Tab:Button({
     Text = "INICIAR",
     Callback = function()
         STATE.running = true
+        saveState()
         statusLabel.Text = "Status: RODANDO"
         task.spawn(mainLoop)
     end
@@ -185,6 +205,7 @@ Tab:Button({
     Text = "PARAR",
     Callback = function()
         STATE.running = false
+        clearState()
         statusLabel.Text = "Status: PARADO"
     end
 })
@@ -203,4 +224,12 @@ task.spawn(function()
     end
 end)
 
-log("GUI carregada! Clique em INICIAR para começar.")
+if loadState() then
+    log("Auto-executando apos server hop...")
+    STATE.running = true
+    statusLabel.Text = "Status: RODANDO"
+    task.wait(3)
+    task.spawn(mainLoop)
+else
+    log("GUI carregada! Clique em INICIAR para começar.")
+end
